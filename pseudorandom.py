@@ -7,8 +7,8 @@ c = 1
 def get_random(x):
     return (a * x + c) % m
 
-def get_randoms(amount=1):
-    x = int(time.time())
+def get_randoms(amount=1, seed=int(time.time())):
+    x = seed
     randoms = []
 
     for _ in range(amount):

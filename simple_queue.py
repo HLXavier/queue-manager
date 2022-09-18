@@ -9,7 +9,7 @@ DEPARTURE = 'departure'
 
 class Queue:
 
-    def __init__(self, servers, capacity, arrival_time, departure_time, first_arrival=0, events=10):
+    def __init__(self, servers, capacity, arrival_time, departure_time, seed, first_arrival=0, rounds=10):
         # C
         self.servers = servers
         # K
@@ -22,14 +22,13 @@ class Queue:
         self.departure_time = departure_time
         self.first_arrival = first_arrival
 
-        self.events = events
-
         self.size = 0
         self.scheduler = Heap()
 
         self.states = [0 for _ in range(capacity + 1)]
+        self.losses = 0
 
-        self.randoms()
+        self.randoms = get_randoms(rounds, seed)
 
         self.table = []
 
@@ -58,6 +57,8 @@ class Queue:
             if self.size <= self.servers:
                 waiting = self.random(self.departure_time)
                 self.schedule_departure(self.time + waiting)
+        else:
+            self.losses += 1
 
         self.schedule_arrival(self.time + self.random(self.arrival_time))
     
@@ -91,13 +92,6 @@ class Queue:
         start, end = base
         random = self.randoms.pop() 
         return round((end - start) * random + start, 4)
-
-    
-    def randoms(self):
-        if len(argv) > 1:
-            self.read_file()
-        else:
-            self.randoms = get_randoms(self.events)
             
 
     def update_table(self, event='-'):
@@ -111,9 +105,6 @@ class Queue:
             result_file.write(tabulate(self.table, tablefmt='orgtbl', headers=headers))
 
 
-    def read_file(self):
-        _, case_number = argv
-        file = open(f'cases/case{case_number}', 'r')
-        values = file.read().split('\n')
-        values.reverse()
-        self.randoms = [float(value) for value in values]
+    def get_results(self):
+        probabilities = [(state / self.time) * 100 for state in self.states]
+        return self.states, probabilities, self.losses
