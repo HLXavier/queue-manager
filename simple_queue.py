@@ -2,7 +2,6 @@ from pseudorandom import get_randoms
 from heap import Heap
 from event import Event
 from tabulate import tabulate
-from sys import argv
 
 ARRIVAL = 'arrival'
 DEPARTURE = 'departure'

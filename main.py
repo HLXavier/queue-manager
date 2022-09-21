@@ -1,4 +1,3 @@
-from re import A
 from simple_queue import Queue 
 from sys import argv
 import json
