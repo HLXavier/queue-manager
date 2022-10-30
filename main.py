@@ -1,4 +1,5 @@
-from simple_queue import Queue 
+from simple_queue import SimpleQueue 
+from base_queue import Queue
 from sys import argv
 import json
 from tabulate import tabulate
@@ -19,8 +20,10 @@ accumulated_probabilities = [0 for _ in range(setup["capacity"] + 1)]
 accumulated_losses = 0
 
 for i in range(executions):
-    queue = Queue(setup["servers"], setup["capacity"], setup["arrival"], setup["departure"], setup["seeds"][i], first_arrival=setup["first"], rounds=setup["rounds"])
+    base = Queue(setup["servers"], setup["capacity"], setup["arrival"], setup["departure"],)
+    queue = SimpleQueue(base, seed=setup["seeds"][i], first_arrival=setup["first"], rounds=setup["rounds"])
     queue.simulate()
+    queue.generate_table()
     state_durations, probs, losses = queue.get_results()
 
     accumulated_state_durations = element_wise_sum(state_durations, accumulated_state_durations)

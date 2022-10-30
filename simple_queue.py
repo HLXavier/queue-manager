@@ -1,5 +1,4 @@
 from scheduler import Scheduler
-from base_queue import Queue
 from tabulate import tabulate
 
 
@@ -16,7 +15,7 @@ class SimpleQueue:
 
         self.first_arrival = first_arrival
         
-        self.states = [0 for _ in range(self.queue.capacity + 1)]
+        self.states = [0] * (self.queue.capacity + 1)
         self.table = []
 
     
@@ -30,7 +29,7 @@ class SimpleQueue:
 
             if event.type == ARRIVAL:
                 self.queue.arrival()
-                self.scheduler.schedule(self.queue.arrival_time, ARRIVAL)
+                self.scheduler.schedule(self.queue.arrival_time_range, ARRIVAL)
 
             if event.type == DEPARTURE:
                 self.queue.departure()

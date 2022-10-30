@@ -12,29 +12,12 @@ class Scheduler:
         self.time = 0
         self.heap = Heap()
         # self.randoms = get_randoms(rounds, seed)
-        self.randoms = self.randoms = [
-            0.9921, 
-            0.0004, 
-            0.5534, 
-            0.2761, 
-            0.3398, 
-            0.8963, 
-            0.9023, 
-            0.0132, 
-            0.4569, 
-            0.5121, 
-            0.9208, 
-            0.0171, 
-            0.2299, 
-            0.8545, 
-            0.6001, 
-            0.2921
-        ]
+        self.randoms = [0.9921, 0.0004, 0.5534, 0.2761, 0.3398, 0.8963, 0.9023, 0.0132, 0.4569, 0.5121, 0.9208, 0.0171, 0.2299, 0.8545, 0.6001, 0.2921]
 
-    
-    def random(self, base):
-        start, end = base
-        random = self.randoms.pop() 
+
+    def random(self, time_range):
+        start, end = time_range
+        random = self.randoms.pop(0) 
         return round((end - start) * random + start, 4)
 
 
@@ -43,10 +26,11 @@ class Scheduler:
         self.heap.add(event)
         
     
-    def schedule(self, base, type):
-        waiting = self.random(base)
-        event = Event(self.time + waiting, type)
-        self.heap.add(event)
+    def schedule(self, time_range, type):
+        if self.randoms:
+            waiting = self.random(time_range)
+            event = Event(self.time + waiting, type)
+            self.heap.add(event)
 
     
     def pop(self):
