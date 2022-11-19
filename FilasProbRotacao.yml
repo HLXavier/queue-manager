@@ -1,0 +1,45 @@
+random_count: 100000
+
+arrivals: 
+   F1: 1
+
+queues: 
+   F1: 
+      servers: 1
+      minArrival: 1
+      maxArrival: 3
+      minService: 1
+      maxService: 1.5
+
+   F2: 
+      servers: 3
+      capacity: 5
+      minService: 5
+      maxService: 10
+
+   F3: 
+      servers: 2
+      capacity: 8
+      minService: 10
+      maxService: 20
+      
+network: 
+-  source: F1
+   target: F2
+   probability: 0.8
+
+-  source: F1
+   target: F3
+   probability: 0.2
+   
+-  source: F2
+   target: F1
+   probability: 0.3
+
+-  source: F2
+   target: F3
+   probability: 0.5
+
+-  source: F3
+   target: F2
+   probability: 0.7

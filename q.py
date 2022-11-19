@@ -1,7 +1,5 @@
-from scheduler import Scheduler
 from tabulate import tabulate
-from typing import Union
-
+from typing import Any
 
 ARRIVAL = 'arrival'
 DEPARTURE = 'departure'
@@ -12,7 +10,7 @@ class Queue:
     def __init__(
         self,
         servers: int,
-        capacity: int,
+        capacity: int | None,
         arrival_time_range: tuple[float, float] | None,
         departure_time_range: tuple[float, float],
         connections: list[tuple['Queue', float]],
@@ -35,10 +33,9 @@ class Queue:
 
         self.last_table_update_time = 0
         self.losses = 0
-        self.state_durations: list[float] = [0] * (capacity + 1)
-        self.table = []
-
-        self.normalize_connection_probs()
+        self.state_durations: list[float] = [0]
+        self.table: list[Any] = [None] * 100_000
+        self.event_count = 0
     
 
     def handle_event(self, type: str):
@@ -51,7 +48,7 @@ class Queue:
     
 
     def arrival(self):
-        if self.size < self.capacity:
+        if self.capacity == None or self.size < self.capacity:
             self.size += 1
             if self.size <= self.servers:
                 self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
@@ -91,32 +88,47 @@ class Queue:
             
             acc_prob += prob
 
-
-
-    def normalize_connection_probs(self):
-        if self.connections == None:
-            return
-        
-        total_prob = sum([prob for queue, prob in self.connections])
-        self.connections = [(queue, prob/total_prob) for queue, prob in self.connections]
-
     def update_table(self, event):
         duration = self.scheduler.curr_time - self.last_table_update_time
         self.last_table_update_time = self.scheduler.curr_time
-        self.state_durations[self.size] += duration     
 
-        line = [event, self.size, self.scheduler.curr_time, *self.state_durations]
-        self.table.append(line)
+        if self.size < len(self.state_durations):
+            self.state_durations[self.size] += duration
+        else:
+            self.state_durations.append(duration)
 
+            # sanity check just to be sure
+            if len(self.state_durations) - 1 != self.size:
+                raise Exception('state_durations got corrupted')
+
+        # line = [event, self.size, self.scheduler.curr_time, *self.state_durations]
+        # if self.event_count < len(self.table):
+        #     self.table[self.event_count] = line
+        # else:
+        #     self.table.append(line)
+
+        # self.event_count += 1
 
     def generate_table(self):
-        headers = ['event', 'size', 'time'] + ['s' + str(i) for i in range(self.capacity + 1)]
+        headers = ['event', 'size', 'time'] + ['s' + str(i) for i in range(len(self.state_durations))]
+        print('generating tables...')
         with open(self.name + '.txt', 'w') as result_file:
             result_file.write(tabulate(self.table, tablefmt='orgtbl', headers=headers))
 
 
-    def get_results(self):
-        probabilities = [(state / self.scheduler.curr_time) * 100 for state in self.state_durations]
-        return probabilities, self.losses
+    def get_probabilities(self):
+        return [(state / self.scheduler.curr_time) * 100 for state in self.state_durations]
+
+
+    def print_statisticss(self):
+        probabilities = self.get_probabilities()
+
+        state_names = [i for i in range(len(self.state_durations))]
+
+        table = list(zip(state_names, probabilities, self.state_durations))
+        
+        print(f'\nResults for {self.name}:')
+        print(tabulate(table, headers=['State', 'Probability', 'Time',], floatfmt='0.2f'))
+        print(f'Avg losses: {self.losses}')
 
 

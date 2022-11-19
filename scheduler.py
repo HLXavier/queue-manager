@@ -6,10 +6,9 @@ from math import inf
 
 class Scheduler:
 
-    def __init__(self, queues: list[Queue], randoms: Iterator[float], rounds: int = inf):
+    def __init__(self, queues: list[Queue], randoms: Iterator[float]):
         self.queues = queues
         self.randoms = randoms
-        self.rounds = rounds
 
         self.curr_time = 0
         self.heap = Heap[Event]()
@@ -18,16 +17,14 @@ class Scheduler:
         for queue in self.queues:
             queue.scheduler = self
 
-        while self.rounds:
-            if self.heap.size < 1:
-                break
-            
+        while self.heap.size > 0:
             event = self.heap.poll()
             self.curr_time = event.time
 
             event.target.handle_event(event.type)
-
-            self.rounds -= 1
+        
+        for queue in self.queues:
+            queue.print_statisticss()
 
     def schedule_range(self, time_range: tuple[float, float], type: str, target: Queue):
         try:
