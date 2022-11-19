@@ -1,3 +1,4 @@
+from scheduler import Scheduler
 from tabulate import tabulate
 from typing import Union
 
@@ -14,7 +15,7 @@ class Queue:
         capacity: int,
         arrival_time_range: tuple[float, float] | None,
         departure_time_range: tuple[float, float],
-        connections: Union[list['Queue'], None],
+        connections: list[tuple['Queue', float]],
         name: str
     ):
         self.servers = servers
@@ -23,16 +24,18 @@ class Queue:
         self.arrival_time_range = arrival_time_range
         self.departure_time_range = departure_time_range
 
-        self.connections = connections
+        self.connections: list[tuple['Queue', float]] = connections
         self.name = name
 
         self.size = 0
-        self.scheduler: 'Scheduler' = None # set externally by Scheduler
+
+        # set externally by Scheduler
+        self.scheduler: 'Scheduler' = None  # type: ignore
 
 
         self.last_table_update_time = 0
         self.losses = 0
-        self.state_durations = [0] * (capacity + 1)
+        self.state_durations: list[float] = [0] * (capacity + 1)
         self.table = []
 
         self.normalize_connection_probs()
@@ -64,19 +67,22 @@ class Queue:
         if self.size >= self.servers:
             self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
         
-        if self.connections:
-            try:
-                next = self.choose_next()
+        try:
+            next = self.choose_next()
+            if next:
                 self.scheduler.schedule_immediate(ARRIVAL, next)
-            except StopIteration:
+            
+        except StopIteration:
                 pass
-        
 
     def choose_next(self):
+        if len(self.connections) < 1:
+            return None
+
         if len(self.connections) == 1:
             return self.connections[0][0]
         
-        rand = self.scheduler.get_random([0, 1])
+        rand = self.scheduler.get_random((0, 1))
         acc_prob = 0
         for i in range(len(self.connections)):
             queue, prob = self.connections[i]
@@ -88,7 +94,7 @@ class Queue:
 
 
     def normalize_connection_probs(self):
-        if self.connections is None:
+        if self.connections == None:
             return
         
         total_prob = sum([prob for queue, prob in self.connections])
