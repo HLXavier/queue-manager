@@ -7,7 +7,7 @@ queues:
    F1: 
       servers: 1
       minArrival: 1
-      maxArrival: 3
+      maxArrival: 4
       minService: 1
       maxService: 1.5
 

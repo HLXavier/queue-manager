@@ -14,7 +14,8 @@ class Queue:
         arrival_time_range: tuple[float, float] | None,
         departure_time_range: tuple[float, float],
         connections: list[tuple['Queue', float]],
-        name: str
+        name: str,
+        output_table: bool
     ):
         self.servers = servers
         self.capacity = capacity
@@ -34,8 +35,11 @@ class Queue:
         self.last_table_update_time = 0
         self.losses = 0
         self.state_durations: list[float] = [0]
-        self.table: list[Any] = [None] * 100_000
+        self.table: list[Any] = []
         self.event_count = 0
+        self.transfer_count = [0, 0, 0]
+
+        self.output_table = output_table
     
 
     def handle_event(self, type: str):
@@ -70,23 +74,28 @@ class Queue:
                 self.scheduler.schedule_immediate(ARRIVAL, next)
             
         except StopIteration:
-                pass
+            print(f'failed to transfer from {self.name}')
+            pass
 
     def choose_next(self):
         if len(self.connections) < 1:
             return None
 
-        if len(self.connections) == 1:
-            return self.connections[0][0]
+        # if len(self.connections) == 1:
+        #     # self.scheduler.get_random((0, 1))
+        #     return self.connections[0][0]
         
         rand = self.scheduler.get_random((0, 1))
         acc_prob = 0
         for i in range(len(self.connections)):
             queue, prob = self.connections[i]
             if rand >= acc_prob and rand <= acc_prob + prob:
+                self.transfer_count[i] += 1
                 return queue
             
             acc_prob += prob
+        
+        self.transfer_count[2] += 1
 
     def update_table(self, event):
         duration = self.scheduler.curr_time - self.last_table_update_time
@@ -101,18 +110,22 @@ class Queue:
             if len(self.state_durations) - 1 != self.size:
                 raise Exception('state_durations got corrupted')
 
-        # line = [event, self.size, self.scheduler.curr_time, *self.state_durations]
-        # if self.event_count < len(self.table):
-        #     self.table[self.event_count] = line
-        # else:
-        #     self.table.append(line)
+        if self.output_table:
+            line = [event, self.size, self.scheduler.curr_time, *self.state_durations]
+            if self.event_count < len(self.table):
+                self.table[self.event_count] = line
+            else:
+                self.table.append(line)
 
-        # self.event_count += 1
+        self.event_count += 1
 
     def generate_table(self):
+        if self.output_table == False:
+            return
+        
         headers = ['event', 'size', 'time'] + ['s' + str(i) for i in range(len(self.state_durations))]
         print('generating tables...')
-        with open(self.name + '.txt', 'w') as result_file:
+        with open('outputs/' + self.name + '.txt', 'w') as result_file:
             result_file.write(tabulate(self.table, tablefmt='orgtbl', headers=headers))
 
 
@@ -130,5 +143,26 @@ class Queue:
         print(f'\nResults for {self.name}:')
         print(tabulate(table, headers=['State', 'Probability', 'Time',], floatfmt='0.2f'))
         print(f'Avg losses: {self.losses}')
+        if self.arrival_time_range != None:
+            print(f'Arrival: {self.arrival_time_range[0]}..{self.arrival_time_range[1]}')
+        else:
+            print(f'Arrival: -')
+
+        print(f'Departure: {self.departure_time_range[0]}..{self.departure_time_range[1]}')
+        print(f'Servers: {self.servers}')
+        if self.capacity != None:
+            print(f'Capacity: {self.capacity}')
+        else:
+            print(f'Capacity: -')
+
+        print('Connections:')
+        for conn in self.connections:
+            print(f'To {conn[0].name} ({conn[1]})')
+
+        
+        self.generate_table()
+        total_transfers = sum(self.transfer_count)
+        # print(f'total transfers: {total_transfers}')
+        # print(f'transfers: {[count / total_transfers for count in self.transfer_count]}')
 
 

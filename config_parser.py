@@ -30,7 +30,8 @@ def read_config(path: str):
                 capacity=capacity,
                 arrival_time_range=arrival,
                 departure_time_range=departure,
-                connections=[]
+                connections=[],
+                output_table=False
             )
 
             queues.append(q)
@@ -44,13 +45,14 @@ def read_config(path: str):
             source.connections.append((target, probability))
 
 
-        scheduler = Scheduler(queues=queues, randoms=random_generator(data['random_count']))
+        scheduler = Scheduler(queues=queues, randoms=random_generator(data['random_count']), output_table=False, randoms_limit=data['random_count'])
+        # scheduler = Scheduler(queues=queues, randoms=iter([0.2176,0.0103,0.1109,0.3456,0.9910,0.2323,0.9211,0.0322,0.1211,0.5131,0.7208,0.9172,0.9922,0.8324,0.5011,0.2931]))
 
         for queue_name in data['arrivals']:
             q = next(q for q in queues if q.name == queue_name)
             time = data['arrivals'][queue_name]
 
             scheduler.schedule(time, ARRIVAL, q)
-        
+
         return scheduler
     
