@@ -35,6 +35,7 @@ class Scheduler:
         for queue in self.queues:
             queue.print_statisticss()
 
+        print(f'Total simulation time: {self.curr_time}')
         self.generate_table()
 
     def schedule_range(self, time_range: tuple[float, float], type: str, target: Queue):

@@ -1,7 +1,5 @@
-from q import Queue
-
 class Event:
-    def __init__(self, time: float, type: str, target: Queue):
+    def __init__(self, time: float, type: str, target: 'Queue'):
         self.time = time
         self.type = type
         self.target = target

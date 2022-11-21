@@ -1,5 +1,6 @@
 from tabulate import tabulate
 from typing import Any
+from event import Event
 
 ARRIVAL = 'arrival'
 DEPARTURE = 'departure'
@@ -45,46 +46,93 @@ class Queue:
     def handle_event(self, type: str):
         self.update_table(type)
 
+        prev = self.size
+
         if type == ARRIVAL:
             self.arrival()
         elif type == DEPARTURE:
             self.departure()
+        else:
+            self.transfer(type)  # type: ignore
     
+
+        if abs(self.size - prev) > 1:
+            print('whoops')
+
+    # def arrival(self):
+    #     if self.capacity == None or self.size < self.capacity:
+    #         self.size += 1
+    #         if self.size <= self.servers:
+    #             self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
+    #     else:
+    #         self.losses += 1
+        
+    #     if self.arrival_time_range:
+    #         self.scheduler.schedule_range(self.arrival_time_range, ARRIVAL, self)
+    
+
+    # def departure(self):
+    #     self.size -= 1
+    #     if self.size >= self.servers:
+    #         self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
+        
+    #     try:
+    #         next = self.choose_next()
+    #         if next:
+    #             self.scheduler.schedule_immediate(ARRIVAL, next)
+            
+    #     except StopIteration:
+    #         print(f'failed to transfer from {self.name}')
+    #         pass
 
     def arrival(self):
         if self.capacity == None or self.size < self.capacity:
             self.size += 1
             if self.size <= self.servers:
-                self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
-        else:
-            self.losses += 1
+                try:
+                    next = self.choose_next()
+                    if next:
+                        self.scheduler.schedule_range(self.departure_time_range, next, self)
+                    else:
+                        self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
+                except StopIteration:
+                    pass
         
-        if self.arrival_time_range:
-            self.scheduler.schedule_range(self.arrival_time_range, ARRIVAL, self)
-    
+        self.scheduler.schedule_range(self.arrival_time_range, ARRIVAL, self)
+
 
     def departure(self):
         self.size -= 1
         if self.size >= self.servers:
-            self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
-        
-        try:
             next = self.choose_next()
             if next:
-                self.scheduler.schedule_immediate(ARRIVAL, next)
+                self.scheduler.schedule_range(self.departure_time_range, next, self)
+            else:
+                self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
             
-        except StopIteration:
-            print(f'failed to transfer from {self.name}')
-            pass
 
-    def choose_next(self):
-        if len(self.connections) < 1:
-            return None
-
-        # if len(self.connections) == 1:
-        #     # self.scheduler.get_random((0, 1))
-        #     return self.connections[0][0]
+    def transfer(self, target: 'Queue'):
+        self.size -= 1
+        if self.size >= self.servers:
+            next = self.choose_next()
+            if next:
+                self.scheduler.schedule_range(self.departure_time_range, next, self)
+            else:
+                self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
         
+        target.update_table(Event(self.scheduler.curr_time, ARRIVAL, None))
+        if target.capacity == None or target.size < target.capacity:
+            target.size += 1
+            if target.size <= target.servers:
+                target_next = target.choose_next()
+                if target_next:
+                    self.scheduler.schedule_range(target.departure_time_range, target_next, target)
+                else:
+                    self.scheduler.schedule_range(target.departure_time_range, DEPARTURE, target)
+
+
+
+    def choose_next(self):       
         rand = self.scheduler.get_random((0, 1))
         acc_prob = 0
         for i in range(len(self.connections)):
@@ -108,6 +156,7 @@ class Queue:
 
             # sanity check just to be sure
             if len(self.state_durations) - 1 != self.size:
+                print(self.state_durations)
                 raise Exception('state_durations got corrupted')
 
         if self.output_table:

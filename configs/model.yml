@@ -35,7 +35,6 @@ arrivals:
 queues: 
    F1: 
       servers: 1
-      capacity: 5
       minArrival: 1
       maxArrival: 4
       minService: 1
