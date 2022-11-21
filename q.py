@@ -32,105 +32,52 @@ class Queue:
         # set externally by Scheduler
         self.scheduler: 'Scheduler' = None  # type: ignore
 
-
         self.last_table_update_time = 0
         self.losses = 0
         self.state_durations: list[float] = [0]
         self.table: list[Any] = []
         self.event_count = 0
-        self.transfer_count = [0, 0, 0]
 
         self.output_table = output_table
+        self.next_universe_event: Event | None = None
     
 
-    def handle_event(self, type: str):
-        self.update_table(type)
+    def handle_event(self, event: Event):
+        self.update_table(event.type)
 
         prev = self.size
 
-        if type == ARRIVAL:
-            self.arrival()
-        elif type == DEPARTURE:
+        if event.type == ARRIVAL:
+            self.arrival(event)
+        elif event.type == DEPARTURE:
             self.departure()
         else:
-            self.transfer(type)  # type: ignore
-    
+            raise Exception(f'Unknown event type {event.type}')
 
-        if abs(self.size - prev) > 1:
-            print('whoops')
-
-    # def arrival(self):
-    #     if self.capacity == None or self.size < self.capacity:
-    #         self.size += 1
-    #         if self.size <= self.servers:
-    #             self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
-    #     else:
-    #         self.losses += 1
-        
-    #     if self.arrival_time_range:
-    #         self.scheduler.schedule_range(self.arrival_time_range, ARRIVAL, self)
-    
-
-    # def departure(self):
-    #     self.size -= 1
-    #     if self.size >= self.servers:
-    #         self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
-        
-    #     try:
-    #         next = self.choose_next()
-    #         if next:
-    #             self.scheduler.schedule_immediate(ARRIVAL, next)
-            
-    #     except StopIteration:
-    #         print(f'failed to transfer from {self.name}')
-    #         pass
-
-    def arrival(self):
+    def arrival(self, event: Event):
         if self.capacity == None or self.size < self.capacity:
             self.size += 1
             if self.size <= self.servers:
-                try:
-                    next = self.choose_next()
-                    if next:
-                        self.scheduler.schedule_range(self.departure_time_range, next, self)
-                    else:
-                        self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
-                except StopIteration:
-                    pass
+                self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
+        else:
+            self.losses += 1
         
-        self.scheduler.schedule_range(self.arrival_time_range, ARRIVAL, self)
-
+        if self.arrival_time_range and (self.next_universe_event == None or event == self.next_universe_event):
+            self.next_universe_event = self.scheduler.schedule_range(self.arrival_time_range, ARRIVAL, self)
+    
 
     def departure(self):
         self.size -= 1
         if self.size >= self.servers:
-            next = self.choose_next()
-            if next:
-                self.scheduler.schedule_range(self.departure_time_range, next, self)
-            else:
-                self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
-            
-
-    def transfer(self, target: 'Queue'):
-        self.size -= 1
-        if self.size >= self.servers:
-            next = self.choose_next()
-            if next:
-                self.scheduler.schedule_range(self.departure_time_range, next, self)
-            else:
-                self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
+            self.scheduler.schedule_range(self.departure_time_range, DEPARTURE, self)
         
-        target.update_table(Event(self.scheduler.curr_time, ARRIVAL, None))
-        if target.capacity == None or target.size < target.capacity:
-            target.size += 1
-            if target.size <= target.servers:
-                target_next = target.choose_next()
-                if target_next:
-                    self.scheduler.schedule_range(target.departure_time_range, target_next, target)
-                else:
-                    self.scheduler.schedule_range(target.departure_time_range, DEPARTURE, target)
-
-
+        try:
+            next = self.choose_next()
+            if next:
+                self.scheduler.schedule_immediate(ARRIVAL, next)
+            
+        except StopIteration:
+            pass
 
     def choose_next(self):       
         rand = self.scheduler.get_random((0, 1))
@@ -138,12 +85,9 @@ class Queue:
         for i in range(len(self.connections)):
             queue, prob = self.connections[i]
             if rand >= acc_prob and rand <= acc_prob + prob:
-                self.transfer_count[i] += 1
                 return queue
             
             acc_prob += prob
-        
-        self.transfer_count[2] += 1
 
     def update_table(self, event):
         duration = self.scheduler.curr_time - self.last_table_update_time
@@ -187,11 +131,14 @@ class Queue:
 
         state_names = [i for i in range(len(self.state_durations))]
 
-        table = list(zip(state_names, probabilities, self.state_durations))
+        table = list(zip(state_names, self.state_durations, probabilities))
         
-        print(f'\nResults for {self.name}:')
-        print(tabulate(table, headers=['State', 'Probability', 'Time',], floatfmt='0.2f'))
-        print(f'Avg losses: {self.losses}')
+        print(f'\n## Results for {self.name}:')
+        print(tabulate(table, headers=['State', 'Time', 'Probability'], floatfmt='0.2f'))
+        print(f'Losses: {self.losses}')
+
+        print(f'\n## Configs for {self.name}:')
+
         if self.arrival_time_range != None:
             print(f'Arrival: {self.arrival_time_range[0]}..{self.arrival_time_range[1]}')
         else:
@@ -204,14 +151,15 @@ class Queue:
         else:
             print(f'Capacity: -')
 
+
+
         print('Connections:')
         for conn in self.connections:
-            print(f'To {conn[0].name} ({conn[1]})')
+            print(f' - To {conn[0].name} ({conn[1]})')
 
-        
+        print('=================================')
+        print()
+
         self.generate_table()
-        total_transfers = sum(self.transfer_count)
-        # print(f'total transfers: {total_transfers}')
-        # print(f'transfers: {[count / total_transfers for count in self.transfer_count]}')
 
 

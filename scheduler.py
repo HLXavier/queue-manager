@@ -30,7 +30,7 @@ class Scheduler:
 
             self.curr_time = event.time
 
-            event.target.handle_event(event.type)
+            event.target.handle_event(event)
         
         for queue in self.queues:
             queue.print_statisticss()
@@ -41,22 +41,23 @@ class Scheduler:
     def schedule_range(self, time_range: tuple[float, float], type: str, target: Queue):
         try:
             time = self.curr_time + self.get_random(time_range)
-            self.add(Event(time, type, target))
+            return self.add(Event(time, type, target))
         except StopIteration:
             print(f'Failed to schedule {type} {target.name}')
             pass
 
     def schedule_immediate(self, type: str, target: Queue):
-        self.add(Event(self.curr_time, type, target))
+        return self.add(Event(self.curr_time, type, target))
     
     def schedule(self, time: float, type: str, target: Queue):
-        self.add(Event(time, type, target))
+        return self.add(Event(time, type, target))
 
     def add(self, e: Event):
         if self.output_table:
             self.history.append(e)
         
         self.heap.add(e)
+        return e
 
     def get_random(self, time_range: tuple[float, float]):
         start, end = time_range
